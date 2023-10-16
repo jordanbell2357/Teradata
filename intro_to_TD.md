@@ -171,3 +171,14 @@ Answer: 80GB. All of the remaining space in the system is available for spool.
 
 3. Temp Space
 The third type of space is Temporary Space. Temp Space is used for global temporary tables, and these results remain available to the user until their session is terminated. Tables created in Temp Space will survive a restart. Temp Space is permanent space currently not used.
+
+# Primary Key (PK) vs. Primary Index (PI)
+      
+Primary Indexes are conceptually different from Primary Keys.
+Primary Key (PK) is a relational data-modeling term that defines the attribute(s) used to uniquely identify a tuple in a entity.
+Primary Index (PI) is a physical database implementation term that defines the column(s) used to distribute the rows in a table. The Primary Index column(s) value may be unique or non-unique.
+Unique Primary Index (UPI) the values in the Primary Index column(s) are unique which results in even row distribution and the elimination of duplicate row checks during data load operations.
+Non-Unique Primary Index (NUPI) the values in the Primary Index column(s) are non-unique which results in potentially skewed row distribution - all duplicate Primary Index values go to the same AMP.
+Accessing a row by its Primary Index value is the most efficient way to access a row and is always a one-AMP operation. Choosing a Primary Index is not an exact science. It requires analysis and thought for some tables and will be completely self-evident on others. Sometimes the obvious choice will be the Primary Key, which is known to be unique. Sometimes the choice of Primary Index may have to do with join performance and known access paths, and will therefore be a different choice than the Primary Key of its source entity.
+
+Example: PK vs. PI. An insurance claims table may contain the following columns: Claim ID, Date, Insurance Provider ID, Patient ID, and Claim Amount. The Primary Key is defined as Claim ID and Date. The same claim number may be submitted on one date and then resubmitted on another date, so you need both columns to look up a claim and its details. Other users may often be analyzing provider fraud behavior and need to access the claim by the Provider ID. In this case, the Primary Index may be the Provider ID column. Even if data distribution may be skewed, a choice like this might be made to provide efficient access to a table.
