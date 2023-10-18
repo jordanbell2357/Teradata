@@ -604,3 +604,128 @@ WHERE
 ORDER BY
     1;
 
+CREATE VIEW emp_403 AS
+SELECT
+    employee_number,
+    last_name,
+    salary_amount
+FROM
+    Employee
+WHERE
+    department_number = 403;
+
+--Direct method
+CREATE VIEW emp_view (emp, dept, lname, fname, sal) AS
+SELECT
+    employee_number,
+    department_number,
+    last_name,
+    first_name,
+    salary_amount
+FROM
+    Employee
+WHERE
+    dept = 401;
+
+--Using AS method
+CREATE VIEW emp_view AS
+SELECT
+    employee_number AS Emp,
+    department_number AS Dept,
+    last_name AS Lname,
+    first_name AS Fname,
+    salary_amount AS Sal
+FROM
+    Employee
+WHERE
+    dept = 401;
+
+CREATE VIEW emp_dept AS
+SELECT
+    e.employee_number,
+    e.last_name,
+    e.first_name,
+    e.salary_amount,
+    d.department_name,
+    d.manager_employee_number
+FROM
+    Employee_Sales.employee e
+    INNER JOIN Employee_Sales.Department d ON d.department_number = e.department_number;
+
+CREATE VIEW SQLA_View AS
+SELECT
+    (employee_number (FORMAT '9999')) (CHAR(4)) AS Emp,
+    (department_number (FORMAT '999')) (VARCHAR(3)) AS Dept,
+    last_name AS Name,
+    first_name,
+    (salary_amount / 12 (FORMAT '$$$$,$$9.99')) (CHAR(11)) AS Mon_Salary
+FROM
+    Employee;
+
+CREATE MACRO emp_401 AS (
+    SELECT
+        Employee_Number,
+        Last_Name,
+        Salary_Amount
+    FROM
+        Employee
+    WHERE
+        department_number = 401;
+
+);
+
+CREATE MACRO Dept_Job AS (
+    SELECT
+        Department_Name
+    FROM
+        Employee_Sales.Department
+    WHERE
+        Department_Number = 401;
+
+SELECT
+    Description
+FROM
+    Employee_Sales.Job
+WHERE
+    Job_Code = 412101;
+
+);
+
+REPLACE MACRO get_sal (empNo INTEGER) AS (
+    SELECT
+        employee_number,
+        last_name,
+        salary_amount
+    FROM
+        employee
+    WHERE
+        employee_number = :empNo;
+
+);
+
+CREATE
+SET
+    VOLATILE TABLE XYZ.vt_deptsal1,
+    FALLBACK,
+    CHECKSUM = DEFAULT,
+    LOG (
+        deptno SMALLINT,
+        avgsal DECIMAL(9, 2),
+        maxsal DECIMAL(9, 2),
+        minsal DECIMAL(9, 2),
+        sumsal DECIMAL(9, 2),
+        empcnt SMALLINT
+    ) PRIMARY INDEX (deptno) ON COMMIT DELETE ROWS;
+
+CREATE SET GLOBAL TEMPORARY TABLE XYZ.GT_DeptSal,
+   FALLBACK ,
+   CHECKSUM = DEFAULT, LOG
+   (DeptNo SMALLINT,
+    AvgSal DECIMAL(9,2),
+    MaxSal DECIMAL(9,2),
+    MinSal DECIMAL(9,2),
+    SumSal DECIMAL(9,2),
+    EmpCnt SMALLINT)
+UNIQUE PRIMARY INDEX (DeptNo)
+ON COMMIT DELETE ROWS;
+
