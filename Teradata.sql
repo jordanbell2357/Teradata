@@ -717,15 +717,207 @@ SET
         empcnt SMALLINT
     ) PRIMARY INDEX (deptno) ON COMMIT DELETE ROWS;
 
-CREATE SET GLOBAL TEMPORARY TABLE XYZ.GT_DeptSal,
-   FALLBACK ,
-   CHECKSUM = DEFAULT, LOG
-   (DeptNo SMALLINT,
-    AvgSal DECIMAL(9,2),
-    MaxSal DECIMAL(9,2),
-    MinSal DECIMAL(9,2),
-    SumSal DECIMAL(9,2),
-    EmpCnt SMALLINT)
-UNIQUE PRIMARY INDEX (DeptNo)
-ON COMMIT DELETE ROWS;
+CREATE
+SET
+    GLOBAL TEMPORARY TABLE XYZ.GT_DeptSal,
+    FALLBACK,
+    CHECKSUM = DEFAULT,
+    LOG (
+        DeptNo SMALLINT,
+        AvgSal DECIMAL(9, 2),
+        MaxSal DECIMAL(9, 2),
+        MinSal DECIMAL(9, 2),
+        SumSal DECIMAL(9, 2),
+        EmpCnt SMALLINT
+    ) UNIQUE PRIMARY INDEX (DeptNo) ON COMMIT DELETE ROWS;
 
+SELECT
+    Employee_Number,
+    Salary_Amount,
+    QUANTILE (100, salary_amount) AS Quant
+FROM
+    Employee
+WHERE
+    Department_Number = 401;
+
+--Example of Non ANSI translation
+SELECT
+    Employee_Number,
+    Salary_Amount,
+    QUANTILE (100, salary_amount) AS Quant
+FROM
+    Employee
+WHERE
+    Department_Number = 401;
+
+--Example of ANSI translation
+SELECT
+    Employee_Number,
+    Salary_Amount,
+    (
+        RANK() OVER (
+            ORDER BY
+                Salary_Amount
+        ) -1
+    ) * 100 / COUNT(*) OVER() AS Quant
+FROM
+    Employee
+WHERE
+    Department_Number = 401;
+
+SELECT
+    SUM(sals)
+FROM
+    (
+        SELECT
+            Salary_Amount
+        FROM
+            Employee QUALIFY QUANTILE(100, Salary_Amount) >= 75
+    ) AS temp(sals);
+
+SELECT
+    Manager_Employee_Number AS Mgr,
+    Department_Number AS Dept,
+    SUM(Salary_Amount) AS SumSal
+FROM
+    Employee
+WHERE
+    Department_Number < 402
+GROUP BY
+    ROLLUP (Manager_Employee_Number, Department_Number)
+ORDER BY
+    1,
+    2;
+
+SELECT
+    CASE
+        GROUPING (Department_Number)
+        WHEN 1 THEN 'Total'
+        ELSE COALESCE(Department_Number, 'Null Dept')
+    END AS Deptno,
+    SUM(Salary_Amount)
+FROM
+    Employee
+GROUP BY
+    ROLLUP (Department_Number)
+ORDER BY
+    1;
+
+SELECT
+    BirthDate,
+    TRUNC(BirthDate, 'CC') (FORMAT 'yyyy-mm-dd') AS "cc1",
+    TRUNC(BirthDate, 'year') (FORMAT 'yyyy-mm-dd') AS "year",
+    TRUNC(BirthDate, 'month') (FORMAT 'yyyy-mm-dd') AS "month"
+FROM
+    Employee
+WHERE
+    Department_Number = 401;
+
+SELECT
+    REGEXP_REPLACE(
+        'Friday is the best day',
+        'day',
+        'DAY EVER',
+        1,
+        2,
+        'c'
+    );
+
+SELECT
+    TO_CHAR(DATE '2003-12-23', 'DD-MON-YYYY');
+
+SELECT
+    *
+FROM
+    Flights
+WHERE
+    origin = 'LAX'
+UNION
+ALL
+SELECT
+    *
+FROM
+    Flights_1Stop
+UNION
+ALL
+SELECT
+    *
+FROM
+    Flights_2Stops;
+
+WITH RECURSIVE All_Trips (Origin, Destination, Cost, Depth) AS (
+    SELECT
+        Origin,
+        Destination,
+        Cost,
+        0
+    FROM
+        Flights
+    WHERE
+        Origin = 'LAX'
+    UNION
+    ALL
+    SELECT
+        All_Trips.Origin,
+        Flights.Destination,
+        All_Trips.Cost + Flights.cost,
+        All_Trips.Depth + 1
+    FROM
+        All_Trips
+        JOIN Flights ON All_Trips.Destination = Flights.Origin
+        AND All_Trips.Depth < 3
+)
+SELECT
+    *
+FROM
+    All_Trips
+ORDER BY
+    4;
+
+REPLACE RECURSIVE VIEW All_Trips_View (Origin, Destination, Cost, Depth) AS (
+    SELECT
+        Origin,
+        Destination,
+        Cost,
+        0
+    FROM
+        Flights
+    UNION
+    ALL
+    SELECT
+        Flights.origin,
+        Flights.Destination,
+        All_Trips_View.Cost + Flights.Cost,
+        All_Trips_View.Depth + 1
+    FROM
+        All_Trips_View,
+        Flights
+    WHERE
+        All_Trips_View.Destination = Flights.Origin
+        AND All_Trips_View.Depth < 12
+        AND All_Trips_View.Origin <> Flights.Destination
+);
+
+REPLACE RECURSIVE VIEW All_Trips_View (Origin, Destination, Cost, Depth) AS (
+    SELECT
+        Origin,
+        Destination,
+        Cost,
+        0
+    FROM
+        Flights
+    UNION
+    ALL
+    SELECT
+        All_Trips_View.Origin,
+        Flights.Destination,
+        All_Trips_View.Cost + Flights.Cost,
+        All_Trips_View.Depth + 1
+    FROM
+        All_Trips_View,
+        Flights
+    WHERE
+        All_Trips_View.Destination = Flights.Origin
+        AND All_Trips_View.Depth < 12
+        AND All_Trips_View.Origin <> Flights.Destination
+);
