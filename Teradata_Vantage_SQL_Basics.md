@@ -447,6 +447,309 @@ ORDER BY
     annual_salary;
 ```
 
+> Relating the earlier concepts of “inner” and “outer” to subqueries is basically a positional one.  The query that is the object of the IN or NOT IN is referred to as the INNER query, and its table as the INNER table. The table that we are projecting column values from is referred to as the OUTER table, and its query as the OUTER query.
+
+```sql
+SELECT *
+FROM employee_sales.employee
+WHERE department_number IN
+(
+SELECT department_number FROM employee_sales.department
+);
+```
+
+> To do so, begin from the lowest level and move outward to the outermost query. The bottom example illustrates how two separate subqueries, ANDed together, might be interpreted as a separate condition. If they were ORed together then the business question would be “People who are managers or work in support departments.” This is not an example of nested subqueries, which will be discussed next.
+
+
+```sql
+SELECT *
+FROM employee_sales.employee
+WHERE job_code = 412101
+AND department_number IN
+(
+SELECT department_number
+FROM employee_sales.department
+WHERE department_name LIKE '%Support%'
+);
+```
+
+```sql
+SELECT *
+FROM employee_sales.employee
+WHERE job_code IN
+(
+SELECT job_code
+FROM employee_sales.job
+WHERE description LIKE '%Manager%'
+)
+AND department_number IN
+(
+SELECT department_number
+FROM employee_sales.department
+WHERE department_name LIKE '%Support%'
+);
+```
+
+```sql
+SELECT *
+FROM employee_sales.employee
+WHERE (department_number, employee_number) IN
+(
+    SELECT department_number, manager_employee_number
+    FROM employee_sales.department
+);
+```
+
+```sql
+SELECT *
+FROM employee_sales.department
+WHERE department_number NOT IN
+(
+    SELECT department_number
+    FROM employee_sales.employee
+    WHERE department_number IS NOT NULL
+);
+```
+
+```sql
+SELECT job_code, job_title
+FROM finance_payroll.hr_jobs
+WHERE legacy_flag = 0
+AND job_code BETWEEN 330000 AND 339999
+AND job_code IN
+(
+    SELECT job_code
+    FROM finance_payroll.hr_payroll
+    WHERE hire_end_date IS NULL
+)
+ORDER BY job_code;
+```
+
+```sql
+SELECT first_name || ' ' || last_name AS fullname, birthdate, annual_salary
+FROM finance_payroll.hr_payroll AS p
+WHERE hire_end_date IS NULL
+AND p.annual_salary < 80000
+AND job_code IN
+(
+    SELECT job_code
+    FROM finance_payroll.hr_jobs
+    WHERE job_title LIKE '%administrator%'
+)
+ORDER BY
+    EXTRACT(MONTH FROM birthdate),
+    EXTRACT(DAY FROM birthdate);
+```
+
+```sql
+SELECT job_code, job_title
+FROM finance_payroll.hr_jobs
+WHERE legacy_flag = 0
+AND job_code NOT IN
+(
+    SELECT job_code
+    FROM finance_payroll.hr_payroll
+    WHERE hire_end_date IS NULL
+    AND job_code IS NOT NULL
+)
+ORDER BY job_title;
+```
+
+```sql
+SELECT district_name, region, num_inhabitants, average_salary
+FROM finance_payroll.fin_district
+WHERE num_inhabitants < 60000
+AND district_id IN
+(
+    SELECT district_id
+    FROM finance_payroll.fin_account
+    WHERE account_id IN
+    (
+        SELECT account_id
+        FROM finance_payroll.fin_loan
+        WHERE status = 'D'
+    )
+)
+ORDER BY district_name;
+```
+
+```sql
+SELECT 
+    employee_sales.employee.employee_number AS emp#,
+    employee_sales.employee.last_name,
+    employee_sales.employee.department_number AS dept#e,
+    employee_sales.department.department_number AS dept#d,
+    employee_sales.department.department_name
+FROM 
+    employee_sales.employee INNER JOIN employee_sales.department
+ON 
+    employee_sales.employee.department_number = employee_sales.department.department_number
+ORDER BY 
+    dept#e, emp#;
+```
+
+> Also, notice that the "ON" clause references the join condition. The WHERE clause is used to reference conditions that are "residual" to the join. The "ON" clause is mandatory if the keyword JOIN is present for an inner join. Join conditions when using the "implicit" form are not mandatory. We shall discuss this later in the module.
+
+```sql
+--Implicit join
+SELECT
+    e.last_name,
+    e.first_name,
+    e.department_number,
+    d.manager_employee_number
+FROM 
+    employee_sales.employee AS e, employee_sales.department AS d
+WHERE 
+    e.department_number = d.department_number
+AND 
+    e.last_name = 'Brown';
+
+--Explicit join
+SELECT
+    e.last_name,
+    e.first_name,
+    e.department_number,
+    d.manager_employee_number
+FROM 
+    employee_sales.employee AS e
+JOIN 
+    employee_sales.department AS d
+ON 
+    e.department_number = d.department_number
+WHERE 
+    e.last_name = 'Brown';
+```
+
+> Implicit Join as shown in the example above, is often referred to as the “implicit” form (Inner Join is not stated so it is implied) while the Explicit Join shown in the example is referred to as the “explicit” form (Inner Join is stated). Another term some may use for the top form is the “comma” form.  When using the explicit form, the INNER keyword is optional.
+>
+> Also, notice that the "ON" clause references the join condition. The WHERE clause is used to reference conditions that are "residual" to the join. The "ON" clause is mandatory if the keyword JOIN is present for an inner join. Join conditions when using the "implicit" form are not mandatory. We shall discuss this later in the module.
+
+```sql
+--Explicit join
+SELECT
+    e.last_name,
+    d.department_name,
+    j.description
+FROM 
+    employee_sales.employee AS e
+JOIN 
+    employee_sales.department AS d
+ON 
+    e.department_number = d.department_number
+JOIN 
+    employee_sales.job AS j
+ON 
+    e.job_code = j.job_code;
+
+--Implicit join
+SELECT
+    e.last_name,
+    d.department_name,
+    j.description
+FROM 
+    employee_sales.employee AS e,
+    employee_sales.department AS d,
+    employee_sales.job AS j
+WHERE 
+    e.department_number = d.department_number
+AND 
+    e.job_code = j.job_code;
+```
+
+> Display the first and last names of employees working in department 301 along with the first and last names of their managers.
+
+```sql
+SELECT
+    emp.employee_number AS emp_emp#,
+    emp.first_name AS emp_fnm,
+    emp.last_name AS emp_lnm,
+    mgr.employee_number AS mgr_emp#,
+    mgr.first_name AS mgr_fnm,
+    mgr.last_name AS mgr_lnm
+FROM 
+    employee_sales.employee AS emp
+JOIN 
+    employee_sales.employee AS mgr
+ON 
+    emp.manager_employee_number = mgr.employee_number
+WHERE 
+    emp.department_number = 301;
+```
+
+```sql
+--Implicit Cross Join (SQL-89)
+SELECT
+    e.employee_number AS emp#,
+    e.last_name,
+    d.department_number AS dept#,
+    d.department_name
+FROM 
+    employee_sales.employee AS e,
+    employee_sales.department AS d;
+
+--Explicit Cross Join (SQL-92)
+SELECT
+    e.employee_number AS emp#,
+    e.last_name,
+    d.department_number AS dept#,
+    d.department_name
+FROM 
+    employee_sales.employee AS e
+CROSS JOIN 
+    employee_sales.department AS d;
+```
+
+```sql
+RETRIEVE employee_sales.employee.last_name;
+```
+
+```sql
+SELECT DISTINCT
+j.job_code,
+j.job_title
+FROM finance_payroll.hr_jobs AS j
+JOIN finance_payroll.hr_payroll AS p
+ON j.job_code = p.job_code
+WHERE j.legacy_flag = 0
+AND j.job_code BETWEEN 330000 AND 339999
+AND p.hire_end_date IS NULL
+ORDER BY j.job_code;
+```
+
+```sql
+SELECT
+p.first_name || ' ' || p.last_name AS fullname,
+p.birthdate,
+p.annual_salary
+FROM finance_payroll.hr_payroll AS p 
+JOIN finance_payroll.hr_jobs AS j
+ON j.job_code = p.job_code
+WHERE p.hire_end_date IS NULL
+AND p.annual_salary < 80000
+AND j.job_title LIKE '%administrator%'
+ORDER BY
+EXTRACT(MONTH FROM p.birthdate),
+EXTRACT(DAY FROM p.birthdate);
+```
+
+```sql
+SELECT
+    Substring(mgr.first_name FROM 1 FOR 1) || '.' || mgr.last_name AS mgr_name,
+    mgr.annual_salary AS mgr_sal,
+    Substring(emp.first_name FROM 1 FOR 1) || '.' || emp.last_name AS emp_name,
+    emp.annual_salary AS emp_sal,
+    emp_sal - mgr_sal AS difference
+FROM finance_payroll.hr_departments AS d
+JOIN finance_payroll.hr_payroll AS mgr
+    ON d.manager_employee_number = mgr.employee_number
+JOIN finance_payroll.hr_payroll AS emp
+    ON d.department_number = emp.department_number
+WHERE emp.hire_end_date IS NULL
+    AND emp_sal > mgr_sal
+ORDER BY difference DESC;
+```
+
 ```sql
 
 ```
+
