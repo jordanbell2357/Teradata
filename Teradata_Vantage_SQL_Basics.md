@@ -1502,3 +1502,195 @@ ORDER BY account_id;
 > 2. But no loan status of 'B' or 'D' (fin_loan)
 >
 > Order the result set by account_id
+
+```sql
+SELECT 
+    account_id,
+    district_id,
+    create_date
+FROM finance_payroll.fin_account
+WHERE account_id IN
+(
+    SELECT account_id
+    FROM finance_payroll.fin_order
+    GROUP BY account_id
+    HAVING COUNT(*) >= 3
+    AND AVG(amount) > 500
+    
+    EXCEPT
+    
+    SELECT account_id
+    FROM finance_payroll.fin_loan
+    WHERE status IN ('B', 'D')
+)
+AND district_id IN (1, 5)
+ORDER BY account_id;
+```
+
+```sql
+--Count
+SELECT employee_number AS emp#,
+first_name,
+last_name,
+hire_date
+FROM finance_payroll.hr_payroll
+SAMPLE 3;
+
+--Fraction
+SELECT employee_number AS emp#,
+first_name,
+last_name,
+hire_date
+FROM finance_payroll.hr_payroll
+SAMPLE 0.001;
+```
+
+```sql
+SELECT HashAmp()+1 AS n; -- returns number of AMPs
+
+SELECT "AMP", Count(*) AS Cnt
+FROM
+(
+    SELECT HashAmp(HashBucket(HashRow(employee_number))) AS "AMP"
+    FROM finance_payroll.hr_payroll -- any large table
+    SAMPLE 360 -- use number of AMPs n * 10 here
+) AS dt
+GROUP BY "AMP"
+ORDER BY "AMP";
+```
+
+> The WITH REPLACEMENT option specifies that sampling is to be done with replacement. The default is sampling without replacement. Sampling without replacement is assumed implicitly if you do not specify WITH REPLACEMENT explicitly.
+
+> Sampling without replacement is analogous to selecting rows from a SET table in that each row sampled is unique, and once a row is sampled, is not returned to the sampling pool. As a result, requesting a number of samples greater than the cardinality of the table returns an error or warning. Whenever multiple samples are requested, they are mutually exclusive.
+
+> Stratified random sampling, sometimes called proportional or quota random sampling, is a sampling method that divides a heterogeneous population of interest into homogeneous subgroups, or strata, and then takes a random sample from each of those subgroups.
+>
+> The result of this homogeneous stratification of the population is that stratified random sampling represents not only the overall population but also key subgroups. For example, a retail application might divide a customer population into subgroups composed of customers who pay for their purchases with cash, those who pay by check, and those who buy on credit.
+
+```sql
+SELECT *
+FROM finance_payroll.fin_trans  -- 1,056,320 rows
+WHERE amount > 1000  -- 112,238 rows
+SAMPLE 0.01  -- 1,122 rows (exactly)
+;
+
+SELECT *
+FROM
+(
+    SELECT *
+    FROM finance_payroll.fin_trans  -- 1,056,320 rows
+    SAMPLE 0.1  -- 105,632 rows (includes approx. 11,224 rows > 1000)
+) AS dt
+WHERE amount > 1000
+SAMPLE 0.1;  -- 1,122 rows (approx.)
+```
+
+> Calculate some statistics of the amount column in the fin_trans table: Row Count, Minimum, Maximum, Average, Median and Standard Deviation.
+>
+> Use multiple sample sizes of 1%, 10%, 25%, 50% and 100% of the rows. 
+>
+> Order the result set by sample size.
+
+```sql
+SELECT
+    CASE sid
+        WHEN 1 THEN 1
+        WHEN 2 THEN 10
+        WHEN 3 THEN 25
+        ELSE 50
+    END AS "% sample",
+    COUNT(*),
+    MIN(amount) AS min_amt,
+    AVG(amount) AS avg_amt,
+    MEDIAN(amount) AS median_amt,
+    MAX(amount) AS max_amt,
+    STDDEV_SAMP(amount) AS stddev_amt
+FROM 
+(
+    SELECT
+        SAMPLEID AS sid,
+        amount
+    FROM finance_payroll.fin_trans
+    SAMPLE RANDOMIZED ALLOCATION 0.01, 0.1, 0.25, 0.5
+) AS dt
+GROUP BY 1
+
+UNION ALL
+
+SELECT
+    100,
+    COUNT(*),
+    MIN(amount) AS min_amt,
+    AVG(amount) AS avg_amt,
+    MEDIAN(amount) AS median_amt,
+    MAX(amount) AS max_amt,
+    STDDEV_SAMP(amount) AS stddev_amt
+FROM finance_payroll.fin_trans
+ORDER BY 1;
+```
+
+```sql
+SELECT TOP 5
+department_number,
+budget_amount
+FROM employee_sales.department
+ORDER BY 2 DESC;
+
+SELECT TOP 5 WITH TIES
+department_number,
+budget_amount
+FROM employee_sales.department
+ORDER BY 2 DESC;
+```
+
+```sql
+SELECT TOP 0.01 PERCENT
+employee_number AS emp#,
+first_name,
+last_name,
+hire_date
+FROM finance_payroll.hr_payroll
+ORDER BY hire_date DESC;
+
+SELECT TOP 0.01 PERCENT WITH TIES
+employee_number AS emp#,
+first_name,
+last_name,
+hire_date
+FROM finance_payroll.hr_payroll
+ORDER BY hire_date DESC;
+```
+
+```sql
+SELECT TOP 6
+employee_number,
+salary_amount
+FROM employee_sales.employee
+ORDER BY salary_amount ASC NULLS LAST;
+```
+
+> Check how rows are picked by an unordered TOP 5000 for a partitioned table.
+>
+> Count the number of
+>
+> 1. distinct AMPs (based on HASHAMP(HASHBUCKET(HASHROW(account_id)))) 
+> 2. distinct partitions (using the PARTITION keyword)
+
+```sql
+WITH base_data AS
+(
+    SELECT TOP 5000
+        HashAmp(HashBucket(HashRow(account_id))) AS "AMP",
+        PARTITION AS part#,
+        trans_date
+    FROM finance_payroll.fin_trans
+)
+SELECT
+    COUNT(*) AS #rows,
+    COUNT(DISTINCT "AMP") AS #AMPs,
+    Count(DISTINCT part#) AS #Partitions,
+    MIN(trans_date) AS min_trans_date,
+    MAX(trans_date) AS max_trans_date
+FROM base_data;
+```
+
