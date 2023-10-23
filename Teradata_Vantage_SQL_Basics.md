@@ -750,6 +750,755 @@ ORDER BY difference DESC;
 ```
 
 ```sql
-
+SELECT 
+    e.employee_number AS emp#,
+    e.last_name,
+    e.department_number AS dept#e,
+    d.department_number AS dept#d,
+    d.department_name
+FROM 
+    employee_sales.employee AS e
+LEFT JOIN 
+    employee_sales.department AS d
+ON 
+    e.department_number = d.department_number
+ORDER BY 
+    dept#e, emp#;
 ```
 
+```sql
+SELECT
+j.job_code,
+j.job_title
+FROM finance_payroll.hr_jobs AS j
+LEFT JOIN finance_payroll.hr_payroll AS p
+ON j.job_code = p.job_code
+WHERE p.job_code IS NULL
+AND legacy_flag = 0
+ORDER BY j.job_title;
+```
+
+> Added WHERE-condition in the subquery "correlates" the inner and the outer select via a join-like condition
+
+> The result of SQL Exists is a Boolean value TRUE or FALSE, if the subquery returns one or more records it returns TRUE otherwise it returns FALSE. But EXISTS never returns UNKNOWN.
+
+```sql
+SELECT
+job_code,
+description
+FROM employee_sales.job AS j
+WHERE EXISTS
+(
+SELECT *
+FROM employee_sales.employee AS e
+WHERE salary_amount < 30000
+AND e.job_code = j.job_code
+)
+ORDER BY job_code;
+```
+
+```sql
+SELECT 
+    first_name || ' ' || last_name AS fullname,
+    birthdate,
+    annual_salary
+FROM 
+    finance_payroll.hr_payroll AS p
+WHERE 
+    hire_end_date IS NULL
+AND 
+    annual_salary < 80000
+AND EXISTS 
+    (
+        SELECT 1
+        FROM finance_payroll.hr_jobs AS j
+        WHERE p.job_code = j.job_code
+        AND job_title LIKE '%administrator%'
+    )
+ORDER BY 
+    Extract(MONTH FROM birthdate),
+    Extract(DAY FROM birthdate);
+```
+
+> Aggregate functions perform operations that summarize information found in tables, i.e., one can expect that a certain amount of detailed information will be lost when performing aggregations. In our first example, we see that a single row is returned, representing the minimum, maximum, sum, and average of all salary amounts for all employees and a number of rows with a known salary amount. COUNT(*) provides us with a mechanism that can be used to count actual rows. It doesn’t matter if NULLs appear for each and every column value in a row, it still gets counted!
+
+```sql
+SELECT
+department_number AS dept#,
+MIN(salary_amount) AS MinSal,
+MAX(salary_amount) AS MaxSal,
+SUM(salary_amount) AS SumSal,
+COUNT(salary_amount) AS CntSal,
+COUNT(*) AS CntStar
+FROM employee_sales.employee
+WHERE salary_amount > 30000
+GROUP BY department_number
+HAVING CntStar >= 3
+ORDER BY department_number;
+```
+
+```sql
+SELECT
+j.job_code,
+j.job_title,
+COUNT(p.job_code) AS Cnt,
+SUM(p.annual_salary) AS sumsal
+FROM finance_payroll.hr_jobs AS j
+LEFT JOIN finance_payroll.hr_payroll AS p
+ON j.job_code = p.job_code
+WHERE j.legacy_flag = 0
+AND j.job_code BETWEEN 330000 AND 339999
+GROUP BY 1,2
+ORDER BY j.job_code;
+```
+
+```sql
+SELECT
+a.account_id,
+COUNT(*) AS Cnt,
+SUM(amount) AS sum_amt
+FROM finance_payroll.fin_account AS a
+JOIN finance_payroll.fin_trans AS t
+ON a.account_id = t.account_id
+WHERE a.district_id = 1
+AND t.trans_date BETWEEN DATE '2018-01-05' AND DATE '2018-01-25'
+GROUP BY 1
+HAVING sum_amt < -4000
+ORDER BY sum_amt ASC;
+```
+
+```sql
+SELECT
+WIDTH_BUCKET(amount, 0, 5000, 10) AS wb,
+COUNT(*) AS Cnt,
+MIN(amount) AS min_amt,
+AVG(amount) AS avg_amt,
+MEDIAN(amount) AS med_amt,
+MAX(amount) AS max_amt,
+SUM(amount) AS sum_amt
+FROM finance_payroll.fin_trans
+WHERE trans_type = 'C' --credit
+AND trans_date BETWEEN DATE '2017-01-01' AND DATE '2017-12-31'
+GROUP BY wb
+ORDER BY wb;
+```
+
+```sql
+SELECT 
+    last_name,
+    first_name,
+    birthdate,
+    CASE Extract(MONTH From birthdate)
+        WHEN 1 THEN 'January'
+        WHEN 2 THEN 'February'
+        WHEN 3 THEN 'March'
+        WHEN 4 THEN 'April'
+        WHEN 5 THEN 'May'
+        WHEN 6 THEN 'June'
+        WHEN 7 THEN 'July'
+        WHEN 8 THEN 'August'
+        WHEN 9 THEN 'September'
+        WHEN 10 THEN 'October'
+        WHEN 11 THEN 'November'
+        WHEN 12 THEN 'December'
+        ELSE '<invalid>'
+    END AS month_name
+FROM employee_sales.employee;
+```
+
+```sql
+SELECT TOP 10
+    employee_number AS emp#,
+    first_name,
+    last_name,
+    birthdate,
+    Add_Months(birthdate, age * 12) AS birthday,
+    Cast(Months_Between(Current_Date-1, birthdate) / 12 AS INT) + 1 AS age
+FROM employee_sales.employee
+ORDER BY
+    CASE
+        WHEN Extract(MONTH From birthdate) < Extract(MONTH From Current_Date) THEN 1
+        WHEN Extract(MONTH From birthdate) = Extract(MONTH From Current_Date)
+        AND Extract(DAY From birthdate) < Extract(DAY From Current_Date) THEN 1
+        ELSE 0
+    END,
+    Extract(MONTH From birthdate),
+    Extract(DAY From birthdate);
+```
+
+```sql
+SELECT
+description,
+hourly_billing_rate/NULLIF(hourly_cost_rate,0) AS cost_ratio
+FROM employee_sales.job
+WHERE description LIKE '%analyst%'
+ORDER BY cost_ratio
+NULLS LAST;
+```
+
+```sql
+SELECT
+description,
+hourly_cost_rate
+FROM employee_sales.job
+WHERE description LIKE '%analyst%';
+```
+
+> Select the number of transactions between '2018-01-05' and '2018-01-25' (trans_date) and the sum of transaction amounts (amount) for accounts from district_id 1.
+>
+> Only return accounts with a sum less than -4000.
+>
+> Order by sum(trans_amount).
+>
+> Split transactions into debits (amount < 0) and credits (amount > 0)
+
+```sql
+SELECT
+    a.account_id,
+    COUNT(*) AS Cnt,
+    SUM(t.amount) AS sum_amt,
+    COUNT(CASE WHEN t.amount < 0 THEN 1 END) AS cnt_D,
+    SUM(CASE WHEN t.amount < 0 THEN t.amount ELSE 0 END) AS sum_D,
+    COUNT(CASE WHEN t.amount > 0 THEN 1 END) AS cnt_C,
+    SUM(CASE WHEN t.amount > 0 THEN t.amount ELSE 0 END) AS sum_C
+FROM finance_payroll.fin_account AS a
+JOIN finance_payroll.fin_trans AS t
+    ON a.account_id = t.account_id
+WHERE a.district_id = 1
+AND t.trans_date BETWEEN DATE '2018-01-05' AND DATE '2018-01-25'
+GROUP BY a.account_id
+HAVING sum_amt < -4000
+ORDER BY sum_amt;
+```
+
+> Select all active (hire_end_date is NULL) employees with an annual_salary over 120,000
+>
+> If the budget_amount of the employee's department is less than 20,000,000 include the budget and calculate the percentage each salary represents of the departmental budget, otherwise return a NULL
+>
+> Order by lastname
+
+```sql
+SELECT
+    p.first_name,
+    p.last_name,
+    p.annual_salary,
+    p.department_number AS dept,
+    d.department_name,
+    CASE WHEN d.budget_amount < 2000000 THEN d.budget_amount END AS budget,
+    100 * p.annual_salary / d.budget_amount AS "% of budget"
+FROM finance_payroll.hr_payroll AS p
+JOIN finance_payroll.hr_departments AS d
+    ON p.department_number = d.department_number
+WHERE p.annual_salary > 120000
+AND p.hire_end_date IS NULL
+ORDER BY p.last_name;
+```
+
+> Create a report showing the number and average annual_salary of all currently active (hire_end_date is NULL) employees working full-time (80 scheduled_hours biweekly).
+>
+> Group employees into seven ranges by years of service (years_service)
+
+```sql
+SELECT 
+    CASE 
+        WHEN years_service <= 5 THEN '1: <= 5'
+        WHEN years_service <= 10 THEN '2: 6-10'
+        WHEN years_service <= 15 THEN '3: 11-15'
+        WHEN years_service <= 20 THEN '4: 16-20'
+        WHEN years_service <= 30 THEN '5: 21-30'
+        WHEN years_service <= 40 THEN '6: 31-40'
+        ELSE '7: > 40'
+    END AS YoS_range,
+    Count(*) AS Cnt,
+    Avg(annual_salary) AS avg_sal
+FROM finance_payroll.hr_payroll
+WHERE hire_end_date IS NULL
+AND scheduled_hours = 80
+GROUP BY 1
+ORDER BY 1;
+```
+
+> Derived Tables are also named "inline view", "sub-select" or "sub-query".
+
+```sql
+SELECT 
+    e.department_number AS dept#,
+    e.job_code,
+    e.employee_number AS emp#,
+    e.last_name,
+    e.salary_amount AS salary,
+    salary - eg.AvgSal AS diff2avg,
+    salary - eg.MaxSal AS diff2max
+FROM 
+    employee_sales.employee AS e
+JOIN
+    (
+        SELECT 
+            department_number,
+            AVG(salary_amount) AS AvgSal,
+            MAX(salary_amount) AS MaxSal
+        FROM 
+            employee_sales.employee
+        GROUP BY 
+            department_number
+        WHERE 
+            department_number IN (301, 501)
+    ) AS eg
+ON 
+    dept# = eg.department_number
+WHERE 
+    e.department_number IN (301, 501);
+```
+
+> A Common Table Expression (CTE) is defined as a SELECT statement in the WITH clause at the top of the query and used in FROM.
+
+> Rules and Restrictions 
+>
+> 1. Wrapped in parentheses
+> 2. Table alias required
+> 3. Calculated columns must be aliased
+> 4. No ORDER BY allowed
+
+```sql
+SELECT 
+    e.department_number AS dept#,
+    e.job_code,
+    e.employee_number AS emp#,
+    e.last_name,
+    e.salary_amount AS salary,
+    salary - eg.AvgSal AS diff2avg,
+    salary - eg.MaxSal AS diff2max
+FROM 
+    employee_sales.employee AS e
+JOIN
+    (
+        SELECT 
+            department_number,
+            AVG(salary_amount) AS AvgSal,
+            MAX(salary_amount) AS MaxSal
+        FROM 
+            employee_sales.employee
+        GROUP BY 
+            department_number
+        WHERE 
+            department_number IN (301, 501)
+    ) AS eg
+ON 
+    dept# = eg.department_number
+WHERE 
+    e.department_number IN (301, 501);
+```
+
+```sql
+-- CTEs
+WITH cte AS
+(
+    SELECT
+        e.department_number AS dept#
+        ,e.job_code
+        ,e.employee_number  AS emp#
+        ,e.last_name
+        ,e.salary_amount    AS salary
+    FROM employee_sales.employee AS e
+    WHERE e.department_number IN (301, 501)
+)
+,eg AS
+(
+    SELECT
+        dept#
+        ,Avg(salary) AS AvgSal
+        ,Max(salary) AS MaxSal
+    FROM cte
+    GROUP BY dept#
+)
+SELECT
+    e.*
+    ,salary - eg.AvgSal AS diff2avg
+    ,salary - eg.MaxSal AS diff2max
+FROM cte AS e
+JOIN eg
+ON e.dept# = eg.dept#;
+```
+
+```sql
+--Same result using a CTE in a DT:
+WITH cte AS
+(
+    SELECT
+        e.department_number AS dept#
+        ,e.job_code
+        ,e.employee_number  AS emp#
+        ,e.last_name
+        ,e.salary_amount    AS salary
+    FROM employee_sales.employee AS e
+    WHERE e.department_number IN (301, 501)
+)
+SELECT
+    e.*
+    ,salary - eg.AvgSal AS diff2avg
+    ,salary - eg.MaxSal AS diff2max
+FROM cte AS e
+JOIN
+(
+    SELECT
+        dept#
+        ,Avg(salary) AS AvgSal
+        ,Max(salary) AS MaxSal
+    FROM cte
+    GROUP BY dept#
+) AS eg
+ON e.dept# = eg.dept#;
+```
+
+> Calculate the minimum/average/maximum of the maximum annual_salary per department with over 50 active (hire_end_date is null) employees.
+>
+> Add the number of departments and the number of employees included in the calculation.
+>
+> Use either a Derived Table or a Common Table Expression to solve this nested aggregation.
+
+```sql
+SELECT
+    MIN(max_sal) AS min_max,
+    AVG(max_sal) AS avg_max,
+    MAX(max_sal) AS max_max,
+    COUNT(*) AS dept_count,
+    SUM(emp_count) AS emp_count
+FROM
+(
+    SELECT 
+        department_number,
+        MAX(annual_salary) AS max_sal,
+        COUNT(*) AS emp_count
+    FROM finance_payroll.hr_payroll
+    WHERE hire_end_date IS NULL
+    GROUP BY department_number
+    HAVING Count(*) > 50
+) AS dt;
+
+WITH cte AS
+(
+    SELECT 
+        department_number,
+        MAX(annual_salary) AS max_sal,
+        COUNT(*) AS emp_count
+    FROM finance_payroll.hr_payroll
+    WHERE hire_end_date IS NULL
+    GROUP BY department_number
+    HAVING COUNT(*) > 50
+)
+SELECT
+    MIN(max_sal) AS min_max,
+    AVG(max_sal) AS avg_max,
+    MAX(max_sal) AS max_max,
+    COUNT(*) AS dept_count,
+    Sum(emp_count) AS emp_count
+FROM cte;
+```
+
+> Write a query to report the employees with the highest overtime_pay per department in 2017 (sal_year). Consider only employees with at least 200 overtime_hours. Order by descending overtime pay. Solve it using either Derived Tables (DT), Common Table Expressions (CTE), Common Table Expressions (CTE)  + Derived Tables (DT), Multi-column Subquery
+
+```sql
+--Derived Table
+SELECT
+    p.employee_number,
+    p.first_name,
+    p.last_name,
+    p.department_number,
+    p.job_code,
+    p.total_pay,
+    p.overtime_pay,
+    p.overtime_hours
+FROM finance_payroll.hr_salary_hist AS p
+JOIN
+(
+    SELECT
+        department_number,
+        Max(overtime_pay) AS max_overtime
+    FROM finance_payroll.hr_salary_hist
+    WHERE sal_year = 2017
+    AND overtime_hours > 200
+    GROUP BY department_number
+) AS dt
+ON p.department_number = dt.department_number
+AND p.overtime_pay = dt.max_overtime
+WHERE p.sal_year = 2017
+AND overtime_hours > 200
+ORDER BY p.overtime_pay DESC;
+
+--Common Table Expression (CTE)
+WITH cte AS
+(
+    SELECT
+        employee_number,
+        first_name,
+        last_name,
+        department_number,
+        job_code,
+        total_pay,
+        overtime_pay,
+        overtime_hours
+    FROM finance_payroll.hr_salary_hist AS t
+    WHERE sal_year = 2017
+    AND overtime_hours > 200
+),
+max_pay AS
+(
+    SELECT
+        department_number,
+        Max(overtime_pay) AS max_overtime
+    FROM cte
+    GROUP BY department_number
+)
+SELECT
+    p.*
+FROM cte AS p
+JOIN max_pay AS mp
+ON p.department_number = mp.department_number
+AND p.overtime_pay = mp.max_overtime
+ORDER BY p.overtime_pay DESC;
+
+--Common Table Expression (CTE) + Derived Table (DT)
+WITH cte AS
+(
+    SELECT
+        employee_number,
+        first_name,
+        last_name,
+        department_number,
+        job_code,
+        total_pay,
+        overtime_pay,
+        overtime_hours
+    FROM finance_payroll.hr_salary_hist AS t
+    WHERE sal_year = 2017
+    AND overtime_hours > 200
+)
+SELECT
+    p.*
+FROM cte AS p
+JOIN
+(
+    SELECT
+        department_number,
+        Max(overtime_pay) AS max_overtime
+    FROM cte
+    GROUP BY department_number
+) AS dt
+ON p.department_number = dt.department_number
+AND p.overtime_pay = dt.max_overtime
+ORDER BY p.overtime_pay DESC;
+
+--Multi-Column Subquery
+SELECT 
+    employee_number,
+    first_name,
+    last_name,
+    department_number AS dept#,
+    job_code,
+    total_pay,
+    overtime_pay,
+    overtime_hours
+FROM finance_payroll.hr_salary_hist AS p
+WHERE sal_year = 2017
+AND overtime_hours > 200
+AND (department_number, overtime_pay) IN 
+(
+    SELECT 
+        department_number,
+        Max(overtime_pay) AS max_overtime
+    FROM finance_payroll.hr_salary_hist
+    WHERE sal_year = 2017
+    AND overtime_hours > 200
+    GROUP BY department_number
+)
+ORDER BY overtime_pay DESC;
+```
+
+> Set operators are aptly named for what they operate on – sets of data. Whereas inner joins and outer joins return rows based upon some matching condition, set operators deal with differences or commonalities among entire projected rows, not just certain columns as referenced as conditional criteria (predicate) or selected columns (projection).
+
+> The data types in the first SELECT statement determine the data types of corresponding columns in the result set
+
+> Each query connected by UNION is performed to produce a result consisting of a set of rows. The union must include the same number of columns from each table in each SELECT statement (more formally, they must be of the same degree), and the data types of these columns should be compatible. All the result sets are then combined into a single result set that has the data type of the columns specified in the first SELECT statement in the union.
+
+```sql
+SELECT area_code, phone
+FROM employee_sales.location_Phone
+WHERE area_code IN (609,804,919)
+
+UNION
+
+SELECT area_code, phone
+FROM employee_sales.employee_phone
+WHERE area_code IN (609,804,919)
+
+ORDER BY 1,2;
+```
+
+> You can specify the ALL option for each UNION operator in the query to retain every occurrence of duplicate rows in the final result.
+
+```sql
+SELECT area_code, phone
+FROM employee_sales.employee_Phone
+WHERE area_code IN (609,804,919)
+
+INTERSECT ALL
+
+SELECT area_code, phone
+FROM employee_sales.location_phone
+WHERE area_code IN (609,804,919)
+
+ORDER BY 1,2;
+```
+
+> INTERSECT ALL can be rewritten as INNER JOIN using all columns in the Select list and calculated ROW_NUMBERs.
+
+```sql
+SELECT ep.area_code,
+    ep.phone
+    FROM
+    
+    (
+    SELECT area_code,
+        phone,
+        ROW_NUMBER() OVER (PARTITION BY area_code, phone ORDER BY 1) AS rn
+        FROM employee_sales.employee_Phone
+        WHERE area_code IN (609,804,919)
+    
+    ) AS ep
+    
+    JOIN
+    
+    (
+    SELECT area_code,
+        phone,
+        ROW_NUMBER() OVER (PARTITION BY area_code, phone
+        ORDER BY 1) AS rn
+        FROM employee_sales.Location_phone
+        WHERE area_code IN (609,804,919)
+    
+    ) AS lp
+    
+    ON ep.area_code = lp.area_code
+    
+    AND ep.phone     = lp.phone
+    
+    AND ep.rn        = lp.rn
+    ORDER BY 1,
+        2;
+```
+
+```sql
+SELECT area_code, phone
+FROM employee_sales.employee_Phone
+WHERE area_code IN (609,804,919)
+
+EXCEPT
+
+SELECT area_code, phone
+FROM employee_sales.location_phone
+WHERE area_code IN (609,804,919)
+
+ORDER BY 1,2;
+```
+
+> Each query connected by EXCEPT is executed to produce a result consisting of a set of rows. The exception must include the same number of columns from each table in each SELECT statement (more formally, they must be of the same degree), and the data types of these columns should be compatible.
+
+> EXCEPT can be rewritten as NOT EXISTS using all columns in the Select list (if no NULLs exist).
+
+```sql
+SELECT DISTINCT area_code, phone
+FROM employee_sales.employee_Phone AS ep
+WHERE area_code IN (609,804,919)
+AND NOT EXISTS
+ (
+   SELECT area_code, phone
+   FROM employee_sales.Location_phone AS lp
+   WHERE area_code IN (609,804,919)
+   AND (ep.area_code = lp.area_code)
+   AND (ep.phone = lp.phone)
+ )
+ORDER BY 1, 2;
+```
+
+> The ALL option instructs the database to preserve duplicate rows.
+>
+> Should be used if uniqueness is not required or the result is known to be unique to avoid expensive DISTINCT operation
+
+```sql
+SELECT area_code, phone
+FROM employee_sales.location_Phone
+WHERE area_code IN (609,804,919)
+
+UNION ALL
+
+SELECT area_code, phone
+FROM employee_sales.employee_phone
+WHERE area_code IN (609,804,919)
+
+ORDER BY 1,2;
+```
+
+```sql
+SELECT 'loc' AS src, area_code, phone
+FROM employee_sales.location_Phone
+WHERE area_code IN (609,804,919)
+
+UNION
+
+SELECT 'emp' AS src, area_code, phone
+FROM employee_sales.employee_phone
+WHERE area_code IN (609,804,919)
+
+ORDER BY 2, 3, 1;
+```
+
+```sql
+SELECT area_code, phone
+FROM employee_sales.employee_Phone
+WHERE area_code IN (609,804,919)
+
+EXCEPT ALL
+
+SELECT area_code, phone
+FROM employee_sales.location_phone
+WHERE area_code IN (609,804,919)
+
+ORDER BY 1,2;
+```
+
+> Find all accounts (fin_account) with both:
+>
+> 1. At least three orders with an average amount over 500 (fin_order)
+> 2. A loan status of 'B' or 'D' (fin_loan)
+>
+> Order the result set by account_id
+
+```sql
+SELECT 
+    account_id,
+    district_id,
+    create_date
+FROM finance_payroll.fin_account
+WHERE account_id IN
+(
+    SELECT account_id
+    FROM finance_payroll.fin_order
+    GROUP BY account_id
+    HAVING COUNT(*) >= 3
+    AND AVG(amount) > 500
+    
+    INTERSECT
+    
+    SELECT account_id
+    FROM finance_payroll.fin_loan
+    WHERE status IN ('B', 'D')
+)
+ORDER BY account_id;
+```
+
+> Find all accounts (fin_account) in districts 1 or 5 with:
+>
+> 1. At least three orders with an average amount over 500 (fin_order)
+> 2. But no loan status of 'B' or 'D' (fin_loan)
+>
+> Order the result set by account_id
