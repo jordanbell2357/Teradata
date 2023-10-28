@@ -225,6 +225,10 @@ HELP TABLE fin_trans;
 
 HELP TABLE fin_trans;
 
+/********************
+Write a query to return details of the employees earning the two highest
+annual_salary for each department_number between 40 and 50. Order by descending salary.
+ ********************/
 
 /********************
  * OLAP Ranking Lab 1 Solution
@@ -246,6 +250,12 @@ QUALIFY
 ORDER BY annual_salary DESC
 ;
 
+/********************
+Write a query to return the top 30 overtime_pay of the sal_year 2017.
+Consider only employees with at least 100 overtime_hours.
+Add another column indicating the rank of the overtime pay within department.
+Order by descending overtime pay.
+ ********************/
 
 /********************
  * OLAP Ranking Lab 2 Solution
@@ -273,6 +283,13 @@ ORDER BY overtime_rank
 
 
 /********************
+Modify the previous report and replace the department rank with a rank of the total_pay of all employees
+regardless of overtime.
+Return the top 30 total_pay amounts of employees with at least 100 hours of overtime.
+Order by descending total pay.
+ ********************/
+
+/********************
  * OLAP Ranking Lab 3 Solution
  ********************/
 
@@ -295,6 +312,12 @@ QUALIFY total_rank <= 30
 ORDER BY total_rank
 ;
 
+/********************
+Write a query to return the 3 accounts with the highest volume of cash withdrawals
+(trans_type = 'P') per district_id. 
+Consider only accounts with a sum(amount) < -50000.
+Order by volume within district.
+ ********************/
 
 /********************
  * OLAP Ranking Lab 4 Solution
@@ -316,7 +339,6 @@ HAVING volume < -50000
 QUALIFY rnk <= 3
 ORDER BY volume
 ;
-
 
 /********************
  * OLAP Quantile Lab Solution (equal height buckets)
@@ -346,7 +368,6 @@ FROM cte
 GROUP BY q
 ORDER BY q
 ;
-
 
 /********************
  * OLAP Quantile Lab Solution (equal sum buckets)

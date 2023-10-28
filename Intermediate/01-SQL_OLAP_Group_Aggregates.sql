@@ -323,9 +323,14 @@ HELP TABLE hr_salary_hist;
 
 HELP TABLE hr_salary_hist;
 
-
 /********************
  * Group Aggregates Lab 1 Solution
+ ********************/
+
+
+/********************
+Write a query to return details of the employee earning the highest annual_salary for each
+department_number between 40 and 50. Order by descending salary.
  ********************/
 
 SELECT
@@ -343,6 +348,10 @@ QUALIFY
 ORDER BY annual_salary DESC
 ;
 
+/********************
+Modify the previous query to add a column indicating the percentage this salary represents of all salaries
+for the department. Return only rows where the percentage is over 1%. Order by descending percentage.
+ ********************/
 
 /********************
  * Group Aggregates Lab 2 Solution
@@ -367,6 +376,12 @@ QUALIFY
 ORDER BY "% dept sal" DESC
 ;
 
+/********************
+Write a query based on employees with a salary (total_pay) > 10000 calculating the average salary
+for each job_code <> 999999 and each sal_year between 2014 to 2017.  Add a column showing the difference
+of the salary to this average salary and return only rows where the salary is more than twice the average.
+Order by descending salary within a year.
+ ********************/
 
 /********************
  * Group Aggregates Lab 3 Solution
@@ -391,6 +406,10 @@ QUALIFY total_pay > 2 * avg_pay
 ORDER BY sal_year, total_pay DESC
 ;
 
+/********************
+Modify the previous, to show only employees who earned more than twice the average in at least 3 of the 4 years
+between 2014 and 2017.
+ ********************/
 
 /********************
  * Group Aggregates Lab 4 Solution
@@ -422,6 +441,12 @@ QUALIFY
 ORDER BY sal_year, total_pay DESC
 ;
 
+
+/********************
+Write a report showing the sum of salaries (total_pay) per department and the percentage these sums represent of
+the sum of all salaries. Base the calculation on data from sal_year 2017 only.  Return only rows where the
+percentage is over 2%. Order by descending sums.
+ ********************/
 
 /********************
  * Group Aggregates Lab 5 Solution

@@ -386,6 +386,11 @@ DATABASE finance_payroll;
 
 HELP TABLE fin_trans;
 
+/********************
+Calculate the average and the sum of the transaction amounts for each month of the
+years 2014 to 2018 (trans_date) and trans_type 'C'. Add a running total of the
+transaction sums per year. Order by year/month.
+ ********************/
 
 /********************
  * Windowed Aggregates: Window Frames Lab 1 Solution
@@ -407,6 +412,11 @@ GROUP BY 1,2
 ORDER BY 1,2
 ;
 
+/********************
+Modify the previous lab and replace the running total with the difference between
+the current month and the same month previous year shown as a factor current/previous.
+Only return months where the sums increased at least 45% over the previous year.
+ ********************/
 
 /********************
  * Windowed Aggregates: Window Frames Lab 2 Solution
@@ -432,6 +442,9 @@ QUALIFY factor > 1.45
 ORDER BY 1,2
 ;
 
+/********************
+
+ ********************/
 
 /********************
  * Windowed Aggregates: Window Frames Lab 3 Solution
@@ -453,6 +466,11 @@ AND trans_date BETWEEN DATE '2018-01-01' AND  DATE '2018-01-31'
 ORDER BY trans_date
 ;
 
+/********************
+Modify the previous lab and replace the running total with the difference between
+the current month and the same month previous year shown as a factor current/previous.
+Only return months where the sums increased at least 45% over the previous year.
+ ********************/
 
 /********************
  * Windowed Aggregates: Window Frames Lab 4 Solution
